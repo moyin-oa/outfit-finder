@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.env
+
+# Large or generated files
+index_artifacts/
+*.npy
+*.index
+
+# OS
+.DS_Store
+
+
