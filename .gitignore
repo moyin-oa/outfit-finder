@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 venv/
+venv311/
 .env
 
 # Large or generated files
