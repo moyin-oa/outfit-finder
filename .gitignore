@@ -2,11 +2,10 @@
 __pycache__/
 *.pyc
 venv/
-venv/311
 .env
 
 # Large or generated files
-index_artifacts/image.index
+index_artifacts/
 *.npy
 *.index
 
