@@ -7,6 +7,9 @@ os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
 
 import json
 import logging
+import base64
+import time
+import uuid
 from io import BytesIO
 from typing import Any
 
@@ -32,6 +35,7 @@ AUTO_CATEGORY_K = 80
 IMAGE_WEIGHT = 0.80
 TEXT_WEIGHT = 0.20
 OPENAI_MODEL = "gpt-4.1-mini"
+CAPTURE_TTL_SECONDS = 3600
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -83,6 +87,7 @@ model, _, preprocess = open_clip.create_model_and_transforms(
 )
 model.eval()
 tokenizer = open_clip.get_tokenizer(MODEL_NAME)
+capture_store: dict[str, dict[str, Any]] = {}
 
 
 def _normalize_rows(arr: np.ndarray) -> np.ndarray:
@@ -224,6 +229,55 @@ def parse_uploaded_image(file: UploadFile) -> Image.Image:
         return Image.open(BytesIO(content)).convert("RGB")
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid or unsupported image file")
+
+
+def parse_image_bytes(content: bytes) -> Image.Image:
+    if not content:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty")
+    try:
+        img = Image.open(BytesIO(content))
+        img.verify()
+        return Image.open(BytesIO(content)).convert("RGB")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid or unsupported image file")
+
+
+def prune_capture_store() -> None:
+    now = time.time()
+    to_delete = []
+    for cid, item in capture_store.items():
+        if now - float(item.get("created_at", 0.0)) > CAPTURE_TTL_SECONDS:
+            to_delete.append(cid)
+    for cid in to_delete:
+        capture_store.pop(cid, None)
+
+
+def save_capture(
+    content: bytes,
+    content_type: str = "image/jpeg",
+    full_content: bytes | None = None,
+    full_content_type: str | None = None,
+) -> str:
+    prune_capture_store()
+    capture_id = uuid.uuid4().hex
+    full_b64 = base64.b64encode(full_content).decode("ascii") if full_content else None
+    capture_store[capture_id] = {
+        "created_at": time.time(),
+        "content_type": content_type or "image/jpeg",
+        "image_b64": base64.b64encode(content).decode("ascii"),
+        "full_content_type": full_content_type or content_type or "image/jpeg",
+        "full_image_b64": full_b64,
+    }
+    return capture_id
+
+
+def get_capture_image(capture_id: str) -> Image.Image:
+    prune_capture_store()
+    item = capture_store.get(capture_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Capture not found or expired")
+    content = base64.b64decode(item["image_b64"])
+    return parse_image_bytes(content)
 
 
 def fallback_description_from_breakdown(
@@ -488,9 +542,8 @@ async def search(
     }
 
 
-@app.post("/breakdown")
-async def breakdown(
-    file: UploadFile = File(...),
+def run_breakdown_for_image(
+    img: Image.Image,
     max_items: int = 3,
     k_per_item: int = 6,
     category: str | None = None,
@@ -500,7 +553,6 @@ async def breakdown(
     if k_per_item <= 0:
         k_per_item = 6
 
-    img = parse_uploaded_image(file)
     q = embed_pil(img)
     qv = q[0]
 
@@ -602,6 +654,93 @@ async def breakdown(
         "max_items": max_items,
         "k_per_item": k_per_item,
     }
+
+
+@app.post("/breakdown")
+async def breakdown(
+    file: UploadFile = File(...),
+    max_items: int = 3,
+    k_per_item: int = 6,
+    category: str | None = None,
+):
+    img = parse_uploaded_image(file)
+    return run_breakdown_for_image(
+        img=img,
+        max_items=max_items,
+        k_per_item=k_per_item,
+        category=category,
+    )
+
+
+@app.post("/upload-capture")
+async def upload_capture(
+    file: UploadFile = File(...),
+    full_file: UploadFile | None = File(default=None),
+):
+    if file is None:
+        raise HTTPException(status_code=400, detail="Missing file upload")
+    if file.content_type and not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Uploaded file must be an image")
+    content = await file.read()
+    # validate image bytes before saving
+    _ = parse_image_bytes(content)
+    full_content = None
+    full_content_type = None
+    if full_file is not None:
+        if full_file.content_type and not full_file.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="full_file must be an image")
+        full_content = await full_file.read()
+        _ = parse_image_bytes(full_content)
+        full_content_type = full_file.content_type or "image/jpeg"
+
+    capture_id = save_capture(
+        content=content,
+        content_type=file.content_type or "image/jpeg",
+        full_content=full_content,
+        full_content_type=full_content_type,
+    )
+    return {
+        "capture_id": capture_id,
+        "expires_in_seconds": CAPTURE_TTL_SECONDS,
+    }
+
+
+@app.get("/capture/{capture_id}")
+async def get_capture(capture_id: str):
+    prune_capture_store()
+    item = capture_store.get(capture_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Capture not found or expired")
+    return {
+        "capture_id": capture_id,
+        "created_at": item.get("created_at"),
+        "content_type": item.get("content_type"),
+        "image_data_url": f"data:{item.get('content_type')};base64,{item.get('image_b64')}",
+        "full_image_data_url": (
+            f"data:{item.get('full_content_type')};base64,{item.get('full_image_b64')}"
+            if item.get("full_image_b64")
+            else None
+        ),
+        "expires_in_seconds": CAPTURE_TTL_SECONDS,
+    }
+
+
+@app.get("/capture/{capture_id}/breakdown")
+async def breakdown_from_capture(
+    capture_id: str,
+    max_items: int = 3,
+    k_per_item: int = 6,
+    category: str | None = None,
+):
+    img = get_capture_image(capture_id)
+    out = run_breakdown_for_image(
+        img=img,
+        max_items=max_items,
+        k_per_item=k_per_item,
+        category=category,
+    )
+    out["capture_id"] = capture_id
+    return out
 
 
 @app.post("/describe")

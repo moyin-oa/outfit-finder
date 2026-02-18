@@ -93,11 +93,12 @@
   }
 
   .upload-zone img {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    z-index: 1;
   }
 
   .upload-icon {
@@ -321,9 +322,11 @@
   }
 
   .product-img img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
   }
 
   .store-badge {
@@ -518,6 +521,7 @@
   const searchBtn = document.getElementById('searchBtn');
 
   let uploadedFile = null;
+  let activeCaptureId = new URLSearchParams(window.location.search).get('capture_id');
   let currentGroups = [];
   let activeCategory = null;
 
@@ -544,7 +548,7 @@
   analyzeBtn.addEventListener('click', () => analyzeOutfit());
 
   searchBtn.addEventListener('click', () => {
-    if (!uploadedFile) return;
+    if (!uploadedFile && !activeCaptureId) return;
     runBreakdown(getCategoryFilter());
   });
 
@@ -554,6 +558,7 @@
 
   function loadFile(file) {
     uploadedFile = file;
+    activeCaptureId = null;
     const reader = new FileReader();
     reader.onload = (e) => {
       const dataURL = e.target.result;
@@ -590,7 +595,7 @@
   }
 
   async function analyzeOutfit() {
-    if (!uploadedFile) return;
+    if (!uploadedFile && !activeCaptureId) return;
 
     analyzeBtn.disabled = true;
     analyzeBtn.classList.add('loading');
@@ -611,23 +616,27 @@
   }
 
   async function runBreakdown(category = null) {
-    if (!uploadedFile) return;
+    if (!uploadedFile && !activeCaptureId) return;
 
     productsLabel.textContent = 'Similar items found';
     productGrid.innerHTML = '<div class="state-msg">Analyzing outfit pieces…</div>';
     detectedItems.innerHTML = '';
     resultsSection.classList.add('visible');
 
-    const formData = new FormData();
-    formData.append('file', uploadedFile);
-
     const params = new URLSearchParams({ max_items: '3', k_per_item: '8' });
     if (category) params.set('category', category);
-
-    const response = await fetch(`${API_BASE}/breakdown?${params.toString()}`, {
-      method: 'POST',
-      body: formData,
-    });
+    let response;
+    if (uploadedFile) {
+      const formData = new FormData();
+      formData.append('file', uploadedFile);
+      response = await fetch(`${API_BASE}/breakdown?${params.toString()}`, {
+        method: 'POST',
+        body: formData,
+      });
+    } else {
+      const safeCaptureId = encodeURIComponent(activeCaptureId);
+      response = await fetch(`${API_BASE}/capture/${safeCaptureId}/breakdown?${params.toString()}`);
+    }
 
     const payload = await response.json();
     if (!response.ok) {
@@ -721,6 +730,41 @@
       productGrid.appendChild(card);
     });
   }
+
+  async function loadCaptureFromQuery() {
+    if (!activeCaptureId) return;
+    analyzeBtn.disabled = true;
+    analyzeBtn.classList.add('loading');
+    btnText.textContent = 'Loading capture…';
+    try {
+      const safeCaptureId = encodeURIComponent(activeCaptureId);
+      const metaRes = await fetch(`${API_BASE}/capture/${safeCaptureId}`);
+      const meta = await metaRes.json();
+      if (!metaRes.ok) {
+        throw new Error(meta?.detail || 'Could not load extension capture');
+      }
+      const dataURL = meta.image_data_url;
+      uploadZone.querySelectorAll('svg, .upload-label').forEach((el) => { el.style.display = 'none'; });
+      let img = uploadZone.querySelector('img');
+      if (!img) {
+        img = document.createElement('img');
+        uploadZone.appendChild(img);
+      }
+      img.src = dataURL;
+      await runBreakdown(getCategoryFilter());
+      btnText.textContent = 'Re-Run Breakdown';
+    } catch (err) {
+      console.error(err);
+      aiDescription.textContent = err.message || 'Could not load captured image from extension.';
+      resultsSection.classList.add('visible');
+      btnText.textContent = 'Find Similar Items';
+    } finally {
+      analyzeBtn.disabled = false;
+      analyzeBtn.classList.remove('loading');
+    }
+  }
+
+  loadCaptureFromQuery();
 </script>
 </body>
 </html>

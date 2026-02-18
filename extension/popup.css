@@ -1,0 +1,146 @@
+:root {
+  --cream: #faf8f5;
+  --ink: #1a1714;
+  --warm-gray: #8a847d;
+  --border: #e8e4de;
+  --accent: #c9a96e;
+  --accent-light: #f5efe4;
+  --card-bg: #ffffff;
+  --radius: 6px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 14px;
+  width: 390px;
+  font-family: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--ink);
+  background: var(--cream);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+}
+
+.header {
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.logo {
+  margin: 0;
+  font-family: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  font-size: 34px;
+  line-height: 1;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+.logo span {
+  color: var(--accent);
+  font-style: italic;
+}
+
+.panel {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-top: 12px;
+}
+
+.gap {
+  gap: 10px;
+}
+
+button {
+  border: 1px solid var(--ink);
+  color: #fff;
+  background: var(--ink);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+button:hover {
+  background: #2d2824;
+  border-color: #2d2824;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.ghost {
+  background: var(--card-bg);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+button.ghost:hover {
+  background: var(--accent-light);
+}
+
+.hint {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--warm-gray);
+}
+
+.canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: 220px;
+  margin-bottom: 10px;
+}
+
+#previewCanvas {
+  display: block;
+  width: 100%;
+  height: 220px;
+  border: 1px dashed #d8d2ca;
+  background: var(--accent-light);
+  border-radius: var(--radius);
+}
+
+.empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--warm-gray);
+  pointer-events: none;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+label {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--warm-gray);
+}
+
+.status {
+  font-size: 13px;
+  color: var(--warm-gray);
+  line-height: 1.6;
+}
+
+.hidden {
+  display: none;
+}
