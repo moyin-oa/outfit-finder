@@ -8,9 +8,11 @@ os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
 import json
 import logging
 from io import BytesIO
+from typing import Any
 
 import faiss
 import numpy as np
+import requests
 import torch
 import open_clip
 from PIL import Image
@@ -29,6 +31,7 @@ RETRIEVAL_K = 100
 AUTO_CATEGORY_K = 80
 IMAGE_WEIGHT = 0.80
 TEXT_WEIGHT = 0.20
+OPENAI_MODEL = "gpt-4.1-mini"
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -221,6 +224,137 @@ def parse_uploaded_image(file: UploadFile) -> Image.Image:
         return Image.open(BytesIO(content)).convert("RGB")
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid or unsupported image file")
+
+
+def fallback_description_from_breakdown(
+    breakdown: dict[str, Any],
+    tone: str = "editorial",
+    max_tips: int = 3,
+    llm_error: str | None = None,
+) -> dict[str, Any]:
+    groups = breakdown.get("groups") or []
+    detected = [g.get("category") for g in groups if g.get("category")]
+    detected = [str(x) for x in detected][:5]
+    if not detected:
+        detected = ["item"]
+
+    piece_summaries = []
+    for g in groups[:5]:
+        cat = g.get("category") or "item"
+        top = (g.get("results") or [{}])[0] or {}
+        piece_summaries.append(
+            {
+                "piece": str(cat),
+                "summary": f"Top match: {top.get('title') or 'catalog item'}",
+                "why_it_matches": "Visual similarity score and category alignment from the retrieval engine.",
+            }
+        )
+
+    tips = [
+        "Keep one focal piece and let other items stay neutral.",
+        "Match texture family across pieces for a cohesive look.",
+        "Use accessories in the same tone range to tie the outfit together.",
+        "Balance proportions: structured pieces pair well with softer silhouettes.",
+    ][:max_tips]
+
+    confidence_notes = []
+    for g in groups[:5]:
+        conf = float(g.get("confidence") or 0.0)
+        confidence_notes.append(
+            f"{g.get('category')}: {round(conf * 100)}% detection confidence from visual retrieval."
+        )
+
+    return {
+        "source": "fallback",
+        "model": None,
+        "llm_attempted": bool(llm_error),
+        "llm_error": llm_error,
+        "description": (
+            f"A {tone} look centered around {', '.join(detected)} with visually similar catalog matches."
+        ),
+        "piece_summaries": piece_summaries,
+        "styling_tips": tips,
+        "confidence_notes": confidence_notes,
+    }
+
+
+def llm_description_from_breakdown(
+    breakdown: dict[str, Any],
+    tone: str = "editorial",
+    max_tips: int = 3,
+) -> dict[str, Any]:
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY is not set")
+
+    schema = {
+        "name": "outfit_description",
+        "schema": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["description", "piece_summaries", "styling_tips", "confidence_notes"],
+            "properties": {
+                "description": {"type": "string"},
+                "piece_summaries": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "required": ["piece", "summary", "why_it_matches"],
+                        "properties": {
+                            "piece": {"type": "string"},
+                            "summary": {"type": "string"},
+                            "why_it_matches": {"type": "string"},
+                        },
+                    },
+                },
+                "styling_tips": {"type": "array", "items": {"type": "string"}},
+                "confidence_notes": {"type": "array", "items": {"type": "string"}},
+            },
+        },
+        "strict": True,
+    }
+
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are a fashion stylist. Use only the provided retrieval output. "
+                "Do not invent products or categories. Return strict JSON."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Tone: {tone}. Max tips: {max_tips}. "
+                f"Breakdown JSON: {json.dumps(breakdown, ensure_ascii=True)}"
+            ),
+        },
+    ]
+
+    payload = {
+        "model": OPENAI_MODEL,
+        "messages": messages,
+        "response_format": {"type": "json_schema", "json_schema": schema},
+        "temperature": 0.2,
+    }
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    resp = requests.post(
+        "https://api.openai.com/v1/chat/completions",
+        headers=headers,
+        json=payload,
+        timeout=45,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    raw = data["choices"][0]["message"]["content"]
+    parsed = json.loads(raw)
+    parsed["source"] = "llm"
+    parsed["model"] = OPENAI_MODEL
+    return parsed
 
 
 @app.get("/health")
@@ -468,3 +602,51 @@ async def breakdown(
         "max_items": max_items,
         "k_per_item": k_per_item,
     }
+
+
+@app.post("/describe")
+async def describe(payload: dict[str, Any]):
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="Request body must be a JSON object")
+
+    # Accept either:
+    # 1) {"breakdown": {...}, "tone": "...", "max_tips": 3}
+    # 2) raw breakdown JSON directly.
+    if isinstance(payload.get("breakdown"), dict):
+        breakdown_payload = payload.get("breakdown") or {}
+        tone = str(payload.get("tone") or "editorial")
+        max_tips = int(payload.get("max_tips") or 3)
+    else:
+        breakdown_payload = payload
+        tone = "editorial"
+        max_tips = 3
+
+    if not isinstance(breakdown_payload, dict):
+        raise HTTPException(status_code=400, detail="breakdown must be a JSON object")
+    if "groups" not in breakdown_payload:
+        raise HTTPException(
+            status_code=400,
+            detail="breakdown payload missing 'groups'. Pass output from /breakdown.",
+        )
+
+    max_tips = max(1, min(max_tips, 8))
+
+    force_llm = bool(payload.get("force_llm")) if isinstance(payload, dict) else False
+
+    try:
+        return llm_description_from_breakdown(
+            breakdown=breakdown_payload,
+            tone=tone,
+            max_tips=max_tips,
+        )
+    except Exception as exc:
+        err = str(exc)
+        logging.warning("LLM describe failed, using fallback: %s", exc)
+        if force_llm:
+            raise HTTPException(status_code=502, detail=f"LLM call failed: {err}")
+        return fallback_description_from_breakdown(
+            breakdown=breakdown_payload,
+            tone=tone,
+            max_tips=max_tips,
+            llm_error=err,
+        )

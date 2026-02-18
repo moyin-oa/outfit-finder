@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+faiss-cpu
+numpy
+torch
+open-clip-torch
+pillow
+python-multipart
+requests
