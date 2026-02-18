@@ -1,0 +1,20 @@
+{
+  "bag": {
+    "slug": "bag",
+    "index_path": "index_artifacts/by_category/bag.index",
+    "ids_path": "index_artifacts/by_category/bag.ids.json",
+    "size": 730
+  },
+  "dress": {
+    "slug": "dress",
+    "index_path": "index_artifacts/by_category/dress.index",
+    "ids_path": "index_artifacts/by_category/dress.ids.json",
+    "size": 818
+  },
+  "shoes": {
+    "slug": "shoes",
+    "index_path": "index_artifacts/by_category/shoes.index",
+    "ids_path": "index_artifacts/by_category/shoes.ids.json",
+    "size": 842
+  }
+}

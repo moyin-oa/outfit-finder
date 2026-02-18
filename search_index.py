@@ -47,18 +47,6 @@ def embed_image_from_url(url: str, model, preprocess) -> np.ndarray:
     vec = feats.cpu().numpy().astype("float32")  # shape (1, d)
     return vec
 
-def embed_image_from_path(path: str) -> np.ndarray:
-    img = Image.open(path).convert("RGB")
-    model, _, preprocess = open_clip.create_model_and_transforms(
-        MODEL_NAME, pretrained=PRETRAINED, device=DEVICE
-    )
-    model.eval()
-    with torch.no_grad():
-        image_tensor = preprocess(img).unsqueeze(0).to(DEVICE)
-        feats = model.encode_image(image_tensor)
-        feats = feats / feats.norm(dim=-1, keepdim=True)
-    return feats.cpu().numpy().astype("float32")
-
 def load_meta(path: str):
     with open(path, "r") as f:
         meta = json.load(f)
@@ -110,6 +98,4 @@ def main():
 
 
 if __name__ == "__main__":
-    q = embed_image_from_path("queries/test.jpg")
     main()
-

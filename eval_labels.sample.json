@@ -1,0 +1,10 @@
+[
+  {
+    "query_image": "queries/myshot.jpg",
+    "k": 5,
+    "category": "shoes",
+    "expected_asins": [
+      "B0C2JXSHSK"
+    ]
+  }
+]
