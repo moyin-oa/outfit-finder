@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Shop the Look</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --cream: #FAF8F5;
+    --ink: #1A1714;
+    --warm-gray: #8A847D;
+    --border: #E8E4DE;
+    --accent: #C9A96E;
+    --accent-light: #F5EFE4;
+    --card-bg: #FFFFFF;
+    --radius: 2px;
+  }
+
+  body {
+    background: var(--cream);
+    font-family: 'DM Sans', sans-serif;
+    color: var(--ink);
+    min-height: 100vh;
+  }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 24px 48px;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+  }
+
+  .logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 28px;
+    font-weight: 300;
+    letter-spacing: 0.04em;
+  }
+
+  .logo span {
+    font-style: italic;
+    color: var(--accent);
+  }
+
+  .tagline {
+    font-size: 12px;
+    color: var(--warm-gray);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 60px 48px;
+  }
+
+  /* Upload Zone */
+  .upload-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: start;
+  }
+
+  .upload-zone {
+    border: 1.5px dashed var(--border);
+    border-radius: var(--radius);
+    aspect-ratio: 4/3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+    overflow: hidden;
+    background: var(--card-bg);
+  }
+
+  .upload-zone:hover {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+
+  .upload-zone.dragover {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+
+  .upload-zone img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .upload-icon {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 16px;
+    opacity: 0.3;
+  }
+
+  .upload-label {
+    font-size: 14px;
+    color: var(--warm-gray);
+    text-align: center;
+    line-height: 1.6;
+  }
+
+  .upload-label strong {
+    display: block;
+    color: var(--ink);
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+
+  input[type="file"] { display: none; }
+
+  .upload-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(26,23,20,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .upload-zone:hover .upload-overlay {
+    opacity: 1;
+  }
+
+  .overlay-text {
+    color: white;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* Right panel */
+  .right-panel {
+    padding-top: 8px;
+  }
+
+  .section-label {
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--warm-gray);
+    margin-bottom: 24px;
+  }
+
+  .hero-text {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 42px;
+    font-weight: 300;
+    line-height: 1.1;
+    margin-bottom: 20px;
+  }
+
+  .hero-text em {
+    font-style: italic;
+    color: var(--accent);
+  }
+
+  .description {
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--warm-gray);
+    margin-bottom: 32px;
+    max-width: 380px;
+  }
+
+  .analyze-btn {
+    background: var(--ink);
+    color: white;
+    border: none;
+    padding: 14px 32px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    border-radius: var(--radius);
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .analyze-btn:hover { background: #2d2824; }
+  .analyze-btn:active { transform: scale(0.98); }
+  .analyze-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .analyze-btn .spinner {
+    width: 14px;
+    height: 14px;
+    border: 1.5px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    display: none;
+  }
+
+  .analyze-btn.loading .spinner { display: block; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Results */
+  .results-section {
+    margin-top: 72px;
+    border-top: 1px solid var(--border);
+    padding-top: 48px;
+    display: none;
+  }
+
+  .results-section.visible { display: block; }
+
+  .results-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 32px;
+  }
+
+  .results-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 28px;
+    font-weight: 300;
+  }
+
+  /* Detected items */
+  .detected-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 40px;
+  }
+
+  .item-chip {
+    background: var(--accent-light);
+    border: 1px solid var(--accent);
+    color: var(--ink);
+    padding: 6px 14px;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    border-radius: 100px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .item-chip:hover, .item-chip.active {
+    background: var(--accent);
+    color: white;
+  }
+
+  .ai-description {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    padding: 20px 24px;
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--warm-gray);
+    margin-bottom: 40px;
+    border-radius: var(--radius);
+  }
+
+  /* Product grid */
+  .products-label {
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--warm-gray);
+    margin-bottom: 20px;
+  }
+
+  .product-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 24px;
+  }
+
+  .product-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: box-shadow 0.2s, transform 0.2s;
+    cursor: pointer;
+    animation: fadeUp 0.4s ease both;
+  }
+
+  .product-card:hover {
+    box-shadow: 0 8px 32px rgba(26,23,20,0.08);
+    transform: translateY(-2px);
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .product-img {
+    aspect-ratio: 3/4;
+    background: var(--accent-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .product-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .store-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: white;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 100px;
+    color: var(--warm-gray);
+    border: 1px solid var(--border);
+  }
+
+  .product-info {
+    padding: 14px 16px;
+  }
+
+  .product-name {
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .product-store {
+    font-size: 11px;
+    color: var(--warm-gray);
+    margin-bottom: 8px;
+  }
+
+  .product-price {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px;
+    color: var(--ink);
+  }
+
+  .product-link {
+    display: block;
+    margin-top: 10px;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  .product-link:hover { text-decoration: underline; }
+
+  /* Empty / error states */
+  .state-msg {
+    text-align: center;
+    padding: 48px;
+    color: var(--warm-gray);
+    font-size: 14px;
+    line-height: 1.8;
+  }
+
+  /* Search bar */
+  .search-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+
+  .search-input {
+    flex: 1;
+    border: 1px solid var(--border);
+    background: white;
+    padding: 10px 16px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    color: var(--ink);
+    outline: none;
+    border-radius: var(--radius);
+    transition: border-color 0.2s;
+  }
+
+  .search-input:focus { border-color: var(--accent); }
+
+  .search-btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: var(--radius);
+    transition: opacity 0.2s;
+  }
+
+  .search-btn:hover { opacity: 0.85; }
+
+  /* Responsive */
+  @media (max-width: 720px) {
+    header { padding: 20px 24px; }
+    main { padding: 40px 24px; }
+    .upload-section { grid-template-columns: 1fr; gap: 32px; }
+    .hero-text { font-size: 32px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Shop the <span>Look</span></div>
+  <div class="tagline">AI-Powered Fashion Discovery</div>
+</header>
+
+<main>
+  <div class="upload-section">
+    <!-- Upload zone -->
+    <div>
+      <div class="upload-zone" id="uploadZone">
+        <svg class="upload-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="6" y="6" width="36" height="36" rx="2"/>
+          <circle cx="18" cy="18" r="4"/>
+          <path d="M6 32l10-10 8 8 6-6 12 12"/>
+        </svg>
+        <div class="upload-label">
+          <strong>Drop your screenshot here</strong>
+          or click to browse
+        </div>
+        <div class="upload-overlay">
+          <span class="overlay-text">Change photo</span>
+        </div>
+        <input type="file" id="fileInput" accept="image/*" />
+      </div>
+    </div>
+
+    <!-- Right panel -->
+    <div class="right-panel">
+      <div class="section-label">How it works</div>
+      <h1 class="hero-text">See it. <em>Find it.</em> Wear it.</h1>
+      <p class="description">
+        Screenshot any outfit from a movie, show, or red carpet moment.
+        Upload it here and our AI will identify every item — dress, shoes,
+        jewelry — then find you the closest matches across top online stores.
+      </p>
+
+      <button class="analyze-btn" id="analyzeBtn" disabled>
+        <div class="spinner"></div>
+        <span id="btnText">Analyse Outfit</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="results-section" id="resultsSection">
+    <div class="results-header">
+      <h2 class="results-title">Outfit Breakdown</h2>
+    </div>
+
+    <!-- AI description -->
+    <div class="ai-description" id="aiDescription"></div>
+
+    <!-- Detected items as chips -->
+    <div class="detected-items" id="detectedItems"></div>
+
+    <!-- Search override -->
+    <div class="search-row">
+      <input class="search-input" id="searchInput" placeholder="Refine search, e.g. 'emerald silk midi dress'…" />
+      <button class="search-btn" id="searchBtn">Search</button>
+    </div>
+
+    <!-- Products -->
+    <div class="products-label" id="productsLabel">Similar items found</div>
+    <div class="product-grid" id="productGrid"></div>
+  </div>
+</main>
+
+<script>
+  const uploadZone = document.getElementById('uploadZone');
+  const fileInput = document.getElementById('fileInput');
+  const analyzeBtn = document.getElementById('analyzeBtn');
+  const btnText = document.getElementById('btnText');
+  const resultsSection = document.getElementById('resultsSection');
+  const aiDescription = document.getElementById('aiDescription');
+  const detectedItems = document.getElementById('detectedItems');
+  const productGrid = document.getElementById('productGrid');
+  const productsLabel = document.getElementById('productsLabel');
+  const searchInput = document.getElementById('searchInput');
+  const searchBtn = document.getElementById('searchBtn');
+
+  let uploadedImageBase64 = null;
+  let currentItems = [];
+
+  // Upload handlers
+  uploadZone.addEventListener('click', () => fileInput.click());
+
+  uploadZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadZone.classList.add('dragover');
+  });
+  uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+  uploadZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadZone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) loadFile(file);
+  });
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) loadFile(fileInput.files[0]);
+  });
+
+  function loadFile(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataURL = e.target.result;
+      uploadedImageBase64 = dataURL.split(',')[1];
+
+      // Show preview
+      uploadZone.querySelectorAll('svg, .upload-label').forEach(el => el.style.display = 'none');
+      let img = uploadZone.querySelector('img');
+      if (!img) { img = document.createElement('img'); uploadZone.appendChild(img); }
+      img.src = dataURL;
+
+      analyzeBtn.disabled = false;
+      btnText.textContent = 'Analyse Outfit';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // Analyse
+  analyzeBtn.addEventListener('click', () => analyzeOutfit());
+  searchBtn.addEventListener('click', () => {
+    const query = searchInput.value.trim();
+    if (query) searchProducts(query);
+  });
+  searchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') searchBtn.click();
+  });
+
+  async function analyzeOutfit() {
+    if (!uploadedImageBase64) return;
+
+    analyzeBtn.disabled = true;
+    analyzeBtn.classList.add('loading');
+    btnText.textContent = 'Analysing…';
+    resultsSection.classList.remove('visible');
+
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          messages: [{
+            role: 'user',
+            content: [
+              {
+                type: 'image',
+                source: { type: 'base64', media_type: 'image/jpeg', data: uploadedImageBase64 }
+              },
+              {
+                type: 'text',
+                text: `You are a fashion expert and personal stylist. Analyze this image and identify the clothing and accessories visible.
+
+Return ONLY a JSON object in this exact format (no markdown, no extra text):
+{
+  "description": "A 1-2 sentence stylish description of the overall look and vibe",
+  "items": [
+    {
+      "label": "Short item name (e.g. 'Slip Dress', 'Strappy Heels')",
+      "searchQuery": "Specific search query to find this item online (color, material, style, e.g. 'black satin slip midi dress')"
+    }
+  ]
+}
+
+Identify up to 5 distinct wearable items. Be specific about color, material, and silhouette for each search query.`
+              }
+            ]
+          }]
+        })
+      });
+
+      const data = await response.json();
+      const raw = data.content.map(b => b.text || '').join('');
+      const clean = raw.replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(clean);
+
+      currentItems = parsed.items || [];
+      aiDescription.textContent = parsed.description || '';
+      
+      // Render chips
+      detectedItems.innerHTML = '';
+      currentItems.forEach((item, i) => {
+        const chip = document.createElement('div');
+        chip.className = 'item-chip';
+        chip.textContent = item.label;
+        chip.addEventListener('click', () => {
+          document.querySelectorAll('.item-chip').forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          searchProducts(item.searchQuery, item.label);
+        });
+        detectedItems.appendChild(chip);
+      });
+
+      resultsSection.classList.add('visible');
+
+      // Auto-search first item
+      if (currentItems.length > 0) {
+        detectedItems.firstChild.classList.add('active');
+        await searchProducts(currentItems[0].searchQuery, currentItems[0].label);
+      }
+
+    } catch (err) {
+      console.error(err);
+      aiDescription.textContent = 'Could not analyse the image. Please try again with a clearer photo.';
+      resultsSection.classList.add('visible');
+    } finally {
+      analyzeBtn.disabled = false;
+      analyzeBtn.classList.remove('loading');
+      btnText.textContent = 'Re-Analyse';
+    }
+  }
+
+  async function searchProducts(query, label) {
+    productsLabel.textContent = label ? `Similar to: ${label}` : 'Search results';
+    productGrid.innerHTML = `<div class="state-msg">Searching for <em>${query}</em>…</div>`;
+    searchInput.value = query;
+
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+          messages: [{
+            role: 'user',
+            content: `Search online stores for: "${query}". 
+
+Find 4-6 real, shoppable products from stores like ASOS, Zara, Net-a-Porter, Revolve, H&M, Nordstrom, Shopbop, or similar.
+
+Return ONLY a JSON array (no markdown) with this structure:
+[
+  {
+    "name": "Product name",
+    "store": "Store name",
+    "price": "$XX",
+    "emoji": "Single relevant emoji for the item type",
+    "url": "Real product URL or store search URL"
+  }
+]
+
+Return 4-6 items. Use real store URLs. Vary the price range (budget to luxury).`
+          }]
+        })
+      });
+
+      const data = await response.json();
+      const fullText = data.content.map(b => b.text || '').filter(Boolean).join('');
+      const clean = fullText.replace(/```json|```/g, '').trim();
+      
+      let products = [];
+      try {
+        products = JSON.parse(clean);
+      } catch {
+        // Try extracting JSON array
+        const match = fullText.match(/\[[\s\S]*\]/);
+        if (match) products = JSON.parse(match[0]);
+      }
+
+      renderProducts(products);
+
+    } catch (err) {
+      console.error(err);
+      productGrid.innerHTML = `<div class="state-msg">Couldn't load results. Try refining your search above.</div>`;
+    }
+  }
+
+  function renderProducts(products) {
+    if (!products || products.length === 0) {
+      productGrid.innerHTML = `<div class="state-msg">No products found. Try a different search.</div>`;
+      return;
+    }
+
+    productGrid.innerHTML = '';
+    products.forEach((p, i) => {
+      const card = document.createElement('div');
+      card.className = 'product-card';
+      card.style.animationDelay = `${i * 0.07}s`;
+      card.innerHTML = `
+        <div class="product-img">
+          <span>${p.emoji || '👗'}</span>
+          <div class="store-badge">${p.store || 'Shop'}</div>
+        </div>
+        <div class="product-info">
+          <div class="product-name">${p.name}</div>
+          <div class="product-store">${p.store}</div>
+          <div class="product-price">${p.price}</div>
+          <a class="product-link" href="${p.url}" target="_blank" rel="noopener">View item →</a>
+        </div>
+      `;
+      productGrid.appendChild(card);
+    });
+  }
+</script>
+</body>
+</html>
