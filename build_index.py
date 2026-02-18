@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from io import BytesIO
 
@@ -19,6 +20,10 @@ INDEX_PATH = os.path.join(OUT_DIR, "image.index")
 META_PATH = os.path.join(OUT_DIR, "meta.json")
 
 DEVICE = "cpu"
+MODEL_NAME = "ViT-B-32"
+PRETRAINED = "laion2b_s34b_b79k"
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 def load_image(url: str, timeout=12):
     r = requests.get(url, timeout=timeout)
@@ -30,8 +35,8 @@ def main():
         catalog = json.load(f)  # list of items
 
     model, _, preprocess = open_clip.create_model_and_transforms(
-        "ViT-B-32",
-        pretrained="laion2b_s34b_b79k",
+        MODEL_NAME,
+        pretrained=PRETRAINED,
     )
     model = model.to(DEVICE).eval()
 
@@ -56,7 +61,8 @@ def main():
                 "image_url": url,
                 "category_hint": item.get("category_hint"),
             })
-        except Exception:
+        except Exception as exc:
+            logging.warning("Skipping item due to image/embed failure: %s (%s)", url, exc)
             continue
 
     if not vectors:
@@ -71,6 +77,7 @@ def main():
         json.dump(meta, f, indent=2)
 
     print(f"Saved index with {len(meta)} items to {INDEX_PATH}")
+    print(f"Model: {MODEL_NAME} ({PRETRAINED})")
 
 if __name__ == "__main__":
     main()
